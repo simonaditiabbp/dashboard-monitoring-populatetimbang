@@ -1,0 +1,60 @@
+from flask import Flask, render_template, jsonify, request
+from dotenv import load_dotenv
+import mysql.connector
+import os
+from datetime import datetime, timedelta
+
+load_dotenv()
+app = Flask(__name__)
+
+# ====== Load konfigurasi dari .env ======
+MYSQL_CONN = {
+    'host': os.getenv("MYSQL_HOST"),
+    'user': os.getenv("MYSQL_USER"),
+    'password': os.getenv("MYSQL_PASS"),
+    'database': os.getenv("MYSQL_DB"),
+}
+
+heartbeats = {}  
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/api/logs')
+def get_logs():
+    conn = mysql.connector.connect(**MYSQL_CONN)
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, LOG_TIME, MESSAGE, STATUS FROM tb_timbang2_log ORDER BY LOG_TIME DESC")
+    result = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify({'data': result})  # ✅ penting: bungkus di 'data'
+
+
+@app.route('/api/status')
+def get_status():
+    now = datetime.now()
+    result = {
+        'timbang1': 'OFFLINE',
+        'timbang2': 'OFFLINE'
+    }
+
+    for name, last_beat in heartbeats.items():
+        if (now - last_beat) < timedelta(seconds=20):
+            result[name] = 'ONLINE'
+
+    return jsonify(result)
+
+@app.route('/api/heartbeat', methods=['POST'])
+def heartbeat():
+    data = request.get_json()
+    name = data.get('pc_name')
+    if name:
+        heartbeats[name] = datetime.now()
+        print(f"💓 Heartbeat diterima dari {name} pada {datetime.now().strftime('%H:%M:%S')}")
+        return jsonify({"status": "ok"})
+    return jsonify({"status": "error", "message": "pc_name missing"}), 400
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
