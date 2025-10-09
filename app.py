@@ -50,6 +50,7 @@ def get_status():
 def heartbeat():
     data = request.get_json()
     name = data.get('pc_name')
+    name = name.lower() if name else None
     if name:
         heartbeats[name] = datetime.now()
         print(f"💓 Heartbeat diterima dari {name} pada {datetime.now().strftime('%H:%M:%S')}")
