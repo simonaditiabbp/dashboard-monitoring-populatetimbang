@@ -88,6 +88,16 @@
             </div>`;
             container.innerHTML += card;
           });
+        })
+        .catch(error => {
+          console.error('Gagal memuat status:', error);
+          const container = document.getElementById('status-container');
+          container.innerHTML = `
+            <div class="rounded-xl shadow-md p-6 text-center bg-red-50 text-red-600">
+              <h2 class="text-lg font-bold mb-3">Gagal Memuat Data</h2>
+              <p class="mb-2">Tidak dapat terhubung ke server atau data API bermasalah.</p>
+              <p class="text-sm text-gray-500">${error.message}</p>
+            </div>`;
         });
     }
 
