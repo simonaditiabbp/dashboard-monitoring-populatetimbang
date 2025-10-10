@@ -5,15 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Monitoring Timbangan</title>
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-  <!-- DataTables -->
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col">
 
@@ -23,32 +18,10 @@
 
   <main class="flex-1 p-6 space-y-8">
     <!-- STATUS -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div class="bg-gray-200 rounded-xl shadow-md p-6 text-center hover:shadow-lg transition">
-        <h2 class="text-lg font-bold mb-3 text-gray-700">PC TIMBANG 1</h2>
-        <div class="bg-gray-100 h-40 flex items-center justify-center rounded-lg border border-gray-300 mb-4">
-          <i class="fa-solid fa-desktop text-6xl text-gray-400"></i>
-        </div>
-        <p class="font-semibold text-gray-700">
-          STATUS:
-          <span id="status-timbang1" class="text-gray-500 font-bold">Loading...</span>
-        </p>
-      </div>
-
-      <div class="bg-gray-200 rounded-xl shadow-md p-6 text-center hover:shadow-lg transition">
-        <h2 class="text-lg font-bold mb-3 text-gray-700">PC TIMBANG 2</h2>
-        <div class="bg-gray-100 h-40 flex items-center justify-center rounded-lg border border-gray-300 mb-4">
-          <i class="fa-solid fa-desktop text-6xl text-gray-400"></i>
-        </div>
-        <p class="font-semibold text-gray-700">
-          STATUS:
-          <span id="status-timbang2" class="text-gray-500 font-bold">Loading...</span>
-        </p>
-      </div>
-    </div>
+    <div id="status-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
 
     <!-- TABEL LOG -->
-    <section class="bg-white rounded-xl shadow p-6">
+     <section class="bg-white rounded-xl shadow p-6">
       <h3 class="text-center text-lg font-semibold text-gray-700 mb-4">History Populate Log</h3>
 
       <div class="overflow-x-auto">
@@ -74,26 +47,50 @@
   </footer>
 
   <script>
-    // === Update status Timbangan 1 & 2 ===
+    function timeAgo(seconds) {
+    if (seconds < 60) return `${seconds} detik lalu`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} menit lalu`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} jam lalu`;
+      return `${Math.floor(seconds / 86400)} hari lalu`;
+    }
+    
     function loadStatus() {
       fetch('/api/status')
         .then(res => res.json())
         .then(data => {
-          document.getElementById('status-timbang1').textContent = data.timbang1;
-          document.getElementById('status-timbang1').className =
-            data.timbang1 === "ONLINE" ? "text-green-600 font-bold" : "text-red-600 font-bold";
+          const container = document.getElementById('status-container');
+          container.innerHTML = ''; // clear dulu
+          Object.keys(data).forEach(pc => {
+            const info = data[pc];
+            const status = info.status;
+            const color = status === "ONLINE" ? "text-green-600" : "text-red-600";
+            const bg = status === "ONLINE" ? "bg-green-50" : "bg-red-50";
+            const lastActive = info.last_seen
+              ? timeAgo(info.ago_seconds)
+              : "Belum pernah aktif";
 
-          document.getElementById('status-timbang2').textContent = data.timbang2;
-          document.getElementById('status-timbang2').className =
-            data.timbang2 === "ONLINE" ? "text-green-600 font-bold" : "text-red-600 font-bold";
-        })
-        .catch(() => {
-          document.getElementById('status-timbang1').textContent = "ERROR";
-          document.getElementById('status-timbang2').textContent = "ERROR";
+            const lastActiveText = status !== "ONLINE"
+                ? `<p class="text-sm text-gray-500">Terakhir aktif: ${
+                    info.last_seen ? timeAgo(info.ago_seconds) : "Belum pernah aktif"
+                  }</p>`
+                : "";  
+
+            const card = `
+              <div class="rounded-xl shadow-md p-6 text-center hover:shadow-lg transition ${bg}">
+              <h2 class="text-lg font-bold mb-3 text-gray-700 uppercase">${pc}</h2>
+              <div class="bg-gray-100 h-40 flex items-center justify-center rounded-lg border border-gray-300 mb-4">
+                <i class="fa-solid fa-desktop text-6xl ${color}"></i>
+              </div>
+              <p class="font-semibold text-gray-700 mb-1">
+                STATUS: <span class="${color} font-bold">${status}</span>
+              </p>
+              ${lastActiveText}
+            </div>`;
+            container.innerHTML += card;
+          });
         });
     }
 
-    // === Load tabel log ===
     function loadLogs() {
       $('#logTable').DataTable({
         ajax: '/api/logs',
@@ -128,12 +125,10 @@
       });
     }
 
-    // === Inisialisasi dan interval ===
     loadStatus();
     loadLogs();
-    setInterval(loadStatus, 5000);   // update status tiap 5 detik
-    setInterval(loadLogs, 15000);    // refresh data log tiap 15 detik
+    setInterval(loadStatus, 5000);
+    setInterval(loadLogs, 15000);
   </script>
-
 </body>
 </html>

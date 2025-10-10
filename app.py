@@ -35,14 +35,23 @@ def get_logs():
 @app.route('/api/status')
 def get_status():
     now = datetime.now()
-    result = {
-        'timbang1': 'OFFLINE',
-        'timbang2': 'OFFLINE'
-    }
-
-    for name, last_beat in heartbeats.items():
+    # result = {
+    #     'timbang1': 'OFFLINE',
+    #     'timbang2': 'OFFLINE'
+    # }
+    
+    result = {}
+    for pc, last_beat in heartbeats.items():
         if (now - last_beat) < timedelta(seconds=20):
-            result[name] = 'ONLINE'
+            status = 'ONLINE'
+        else:
+            status = 'OFFLINE'
+            
+        result[pc] = {
+            "status": status,
+            "last_seen": last_beat.strftime("%Y-%m-%d %H:%M:%S"),
+            "ago_seconds": int((now - last_beat).total_seconds())
+        }
 
     return jsonify(result)
 
