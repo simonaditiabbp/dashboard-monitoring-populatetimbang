@@ -57,10 +57,16 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/api/logs')
-def get_logs():
+def get_logs():    
     conn = mysql.connector.connect(**MYSQL_CONN)
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, LOG_TIME, MESSAGE, STATUS FROM tb_timbang2_log ORDER BY LOG_TIME DESC")
+    
+    pc_name = request.args.get('pc_name')
+    if pc_name:
+        cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM tb_timbang2_log  WHERE PC_NAME = %s ORDER BY LOG_TIME DESC", (pc_name,))
+    else:
+        cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM tb_timbang2_log ORDER BY LOG_TIME DESC")
+        
     result = cursor.fetchall()
     cursor.close()
     conn.close()

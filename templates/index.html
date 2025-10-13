@@ -9,6 +9,12 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+  <style>
+    /* Buat semua th yang punya class text-center benar-benar center */
+    table#logTable th.text-center {
+      text-align: center !important;
+    }
+  </style>
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col">
 
@@ -32,12 +38,13 @@
         <table id="logTable" class="display min-w-full text-sm border-collapse">
           <thead>
             <tr>
-              <th>NOURUT1</th>
-              <th>PLANT_ID</th>
-              <th>AKSI</th>
-              <th>LOG_TIME</th>
-              <th>MESSAGE</th>
-              <th>STATUS</th>
+              <th class="text-center">NOURUT1</th>
+              <th class="text-center">PLANT_ID</th>
+              <th class="text-center">AKSI</th>
+              <th class="text-center">PC NAME</th>
+              <th class="text-center">LOG_TIME</th>
+              <th class="text-center">STATUS</th>
+              <th class="text-center">MESSAGE</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -63,33 +70,34 @@
         .then(res => res.json())
         .then(data => {
           const container = document.getElementById('status-container');
-          container.innerHTML = ''; // clear dulu
+          container.innerHTML = '';
           Object.keys(data).forEach(pc => {
             const info = data[pc];
             const status = info.status;
             const color = status === "ONLINE" ? "text-green-600" : "text-red-600";
             const bg = status === "ONLINE" ? "bg-green-50" : "bg-red-50";
-            const lastActive = info.last_seen
-              ? timeAgo(info.ago_seconds)
-              : "Belum pernah aktif";
-
             const lastActiveText = status !== "ONLINE"
-                ? `<p class="text-sm text-gray-500">Terakhir aktif: ${
-                    info.last_seen ? timeAgo(info.ago_seconds) : "Belum pernah aktif"
-                  }</p>`
-                : "";  
+              ? `<p class="text-sm text-gray-500">Terakhir aktif: ${
+                  info.last_seen ? timeAgo(info.ago_seconds) : "Belum pernah aktif"
+                }</p>`
+              : "";
 
             const card = `
               <div class="rounded-xl shadow-md p-6 text-center hover:shadow-lg transition ${bg}">
-              <h2 class="text-lg font-bold mb-3 text-gray-700 uppercase">${pc}</h2>
-              <div class="bg-gray-100 h-40 flex items-center justify-center rounded-lg border border-gray-300 mb-4">
-                <i class="fa-solid fa-desktop text-6xl ${color}"></i>
-              </div>
-              <p class="font-semibold text-gray-700 mb-1">
-                STATUS: <span class="${color} font-bold">${status}</span>
-              </p>
-              ${lastActiveText}
-            </div>`;
+                <div class="flex justify-between items-center mb-3">
+                  <h2 class="text-lg font-bold text-gray-700 uppercase">${pc}</h2>
+                  <button onclick="refreshLogs('${pc}')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded-md flex items-center gap-1">
+                    <i class="fa-solid fa-rotate-right"></i> Refresh
+                  </button>
+                </div>
+                <div class="bg-gray-100 h-40 flex items-center justify-center rounded-lg border border-gray-300 mb-4">
+                  <i class="fa-solid fa-desktop text-6xl ${color}"></i>
+                </div>
+                <p class="font-semibold text-gray-700 mb-1">
+                  STATUS: <span class="${color} font-bold">${status}</span>
+                </p>
+                ${lastActiveText}
+              </div>`;
             container.innerHTML += card;
           });
         })
@@ -105,6 +113,7 @@
         });
     }
 
+
     function loadLogs() {
       $('#logTable').DataTable({
         ajax: '/api/logs',
@@ -115,11 +124,29 @@
           { data: 'AKSI',
             render: function (data) {
                 if (!data) return `<span class="text-gray-400">-</span>`;
-                return `<span class="px-2 py-1 text-xs font-semibold rounded-md bg-gray-100 text-gray-700">${data}</span>`;
+                let textColor = 'text-gray-700'; // default
+                switch (data.toUpperCase()) {
+                  case 'DELETE':
+                    textColor = 'text-red-600';
+                    break;
+                  case 'UPDATE':
+                    textColor = 'text-yellow-600';
+                    break;
+                  case 'INSERT':
+                    textColor = 'text-green-600';
+                    break;
+                }
+                return `<span class="px-2 py-1 text-xs font-semibold rounded-md bg-gray-100 ${textColor}">${data}</span>`;
             }
           },
-          { data: 'LOG_TIME' },
-          { data: 'MESSAGE' },
+          { data: 'PC_NAME',
+            render: function (data) {
+              if (!data) return `<span class="text-gray-400">-</span>`;
+              const pcName = data.toUpperCase()
+              return `<span class="uppercase">${pcName}</span>`
+            }
+           },
+          { data: 'LOG_TIME' },          
           {
             data: 'STATUS',
             render: function (data) {
@@ -131,9 +158,71 @@
               else if (status === "PENDING") colorClass = "bg-yellow-100 text-yellow-700";
               return `<span class="px-2 py-1 text-xs font-semibold rounded-md ${colorClass}">${status}</span>`;
             }
-          }
+          },
+          { data: 'MESSAGE' },
         ],
-        pageLength: 10,
+        // ⬇ Tambahkan bagian ini untuk mengatur align center
+        columnDefs: [
+          { targets: [0, 1, 2, 3, 4, 5, 6], className: 'text-center' } // 2 = AKSI, 3 = PC_NAME, 5 = STATUS
+        ],
+        pageLength: 25,
+        order: [[3, 'desc']],
+        language: { search: "🔍 Cari:" }
+      });
+    }
+
+    function refreshLogs(pc_name) {
+      console.log(`🔄 Refresh log untuk: ${pc_name}`);
+      $('#logTable').DataTable({
+        ajax: `/api/logs?pc_name=${pc_name}`,
+        destroy: true,
+        columns: [
+          { data: 'NOURUT1' },
+          { data: 'PLANT_ID' },
+          { data: 'AKSI',
+            render: function (data) {
+              if (!data) return `<span class="text-gray-400">-</span>`;
+              let textColor = 'text-gray-700'; // default
+              switch (data.toUpperCase()) {
+                case 'DELETE':
+                  textColor = 'text-red-600';
+                  break;
+                case 'UPDATE':
+                  textColor = 'text-yellow-600';
+                  break;
+                case 'INSERT':
+                  textColor = 'text-green-600';
+                  break;
+              }
+              return `<span class="px-2 py-1 text-xs font-semibold rounded-md bg-gray-100 ${textColor}">${data}</span>`;
+            }
+          },
+          { data: 'PC_NAME',
+            render: function (data) {
+              if (!data) return `<span class="text-gray-400">-</span>`;
+              const pcName = data.toUpperCase()
+              return `<span class="uppercase">${pcName}</span>`
+            }
+          },
+          { data: 'LOG_TIME' },
+          {
+            data: 'STATUS',
+            render: function (data) {
+              if (!data) return `<span class="text-gray-400">-</span>`;
+              const status = data.toUpperCase();
+              let colorClass = "bg-gray-100 text-gray-700";
+              if (status === "SUCCESS") colorClass = "bg-green-100 text-green-700";
+              else if (status === "FAILED") colorClass = "bg-red-100 text-red-700";
+              else if (status === "PENDING") colorClass = "bg-yellow-100 text-yellow-700";
+              return `<span class="px-2 py-1 text-xs font-semibold rounded-md ${colorClass}">${status}</span>`;
+            }
+          },
+          { data: 'MESSAGE' }
+        ],
+        columnDefs: [
+          { targets: [0, 1, 2, 3, 4, 5, 6], className: 'text-center' } // 2 = AKSI, 3 = PC_NAME, 5 = STATUS
+        ],
+        pageLength: 25,
         order: [[3, 'desc']],
         language: { search: "🔍 Cari:" }
       });
@@ -142,7 +231,7 @@
     loadStatus();
     loadLogs();
     setInterval(loadStatus, 20000);
-    setInterval(loadLogs, 20000);
+    setInterval(loadLogs, 600000); // update all status log per 10 menit
   </script>
 </body>
 </html>
