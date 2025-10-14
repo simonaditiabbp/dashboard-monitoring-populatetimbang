@@ -8,21 +8,18 @@ import pyodbc
 load_dotenv()
 app = Flask(__name__)
 
-# ====== Load konfigurasi dari .env ======
-MYSQL_CONN = {
-    'host': os.getenv("MYSQL_HOST"),
-    'user': os.getenv("MYSQL_USER"),
-    'password': os.getenv("MYSQL_PASS"),
-    'database': os.getenv("MYSQL_DB"),
-}
+env = os.getenv("APP_ENV", "dev").lower()
+
+prefix = "DEV_" if env == "dev" else "PROD_"
+tb_timbang_log = "tb_timbang4_log" if env == "dev" else "tb_timbang2_log"
 
 def get_db_connection():
     conn = pyodbc.connect(
         f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-        f"SERVER={os.getenv('SQLSERVER_HOST')};"
-        f"DATABASE={os.getenv('SQLSERVER_DB')};"
-        f"UID={os.getenv('SQLSERVER_USER')};"
-        f"PWD={os.getenv('SQLSERVER_PASS')}"
+        f"SERVER={os.getenv(f'{prefix}SQLSERVER_HOST')};"
+        f"DATABASE={os.getenv(f'{prefix}SQLSERVER_DB')};"
+        f"UID={os.getenv(f'{prefix}SQLSERVER_USER')};"
+        f"PWD={os.getenv(f'{prefix}SQLSERVER_PASS')}"
     )
     return conn
 
@@ -73,10 +70,14 @@ def get_logs():
     cursor = conn.cursor()
     
     pc_name = request.args.get('pc_name')
+    query_base = f"SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM {tb_timbang_log}"
+
     if pc_name:
-        cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM tb_timbang4_log WHERE PC_NAME = ? ORDER BY LOG_TIME DESC", (pc_name,))
+        query = query_base + " WHERE PC_NAME = ? ORDER BY LOG_TIME DESC"
+        cursor.execute(query, (pc_name,))
     else:
-        cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM tb_timbang4_log ORDER BY LOG_TIME DESC")
+        query = query_base + " ORDER BY LOG_TIME DESC"
+        cursor.execute(query)
         
     columns = [column[0] for column in cursor.description]
     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
