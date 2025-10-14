@@ -74,7 +74,7 @@ def get_logs():
     
     pc_name = request.args.get('pc_name')
     if pc_name:
-        cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM tb_timbang4_log  WHERE PC_NAME = %s ORDER BY LOG_TIME DESC", (pc_name,))
+        cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM tb_timbang4_log WHERE PC_NAME = ? ORDER BY LOG_TIME DESC", (pc_name,))
     else:
         cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM tb_timbang4_log ORDER BY LOG_TIME DESC")
         
@@ -82,7 +82,7 @@ def get_logs():
     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
     cursor.close()
     conn.close()
-    return jsonify({'data': rows})  # ✅ penting: bungkus di 'data'
+    return jsonify({'data': rows}) 
 
 
 @app.route('/api/status')
@@ -118,6 +118,14 @@ def heartbeat():
         print(f"💓 Heartbeat diterima dari {name} pada {datetime.now().strftime('%H:%M:%S')}")
         return jsonify({"status": "ok"})
     return jsonify({"status": "error", "message": "pc_name missing"}), 400
+
+@app.errorhandler(Exception)
+def handle_error(e):
+    import traceback
+    print("ERROR:", e)
+    traceback.print_exc()
+    return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
