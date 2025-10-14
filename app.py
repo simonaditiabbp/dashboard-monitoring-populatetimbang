@@ -1,8 +1,9 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session
 from dotenv import load_dotenv
-import mysql.connector
+# import mysql.connector
 import os
 from datetime import datetime, timedelta
+import pyodbc
 
 load_dotenv()
 app = Flask(__name__)
@@ -14,6 +15,16 @@ MYSQL_CONN = {
     'password': os.getenv("MYSQL_PASS"),
     'database': os.getenv("MYSQL_DB"),
 }
+
+def get_db_connection():
+    conn = pyodbc.connect(
+        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+        f"SERVER={os.getenv('SQLSERVER_HOST')};"
+        f"DATABASE={os.getenv('SQLSERVER_DB')};"
+        f"UID={os.getenv('SQLSERVER_USER')};"
+        f"PWD={os.getenv('SQLSERVER_PASS')}"
+    )
+    return conn
 
 app.secret_key = os.getenv("FLASK_SECRET", "defaultsecret")
 LOGIN_USER = os.getenv("LOGIN_USER", "admin")
@@ -58,19 +69,20 @@ def logout():
 
 @app.route('/api/logs')
 def get_logs():    
-    conn = mysql.connector.connect(**MYSQL_CONN)
-    cursor = conn.cursor(dictionary=True)
+    conn = get_db_connection()
+    cursor = conn.cursor()
     
     pc_name = request.args.get('pc_name')
     if pc_name:
-        cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM tb_timbang2_log  WHERE PC_NAME = %s ORDER BY LOG_TIME DESC", (pc_name,))
+        cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM tb_timbang4_log  WHERE PC_NAME = %s ORDER BY LOG_TIME DESC", (pc_name,))
     else:
-        cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM tb_timbang2_log ORDER BY LOG_TIME DESC")
+        cursor.execute("SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM tb_timbang4_log ORDER BY LOG_TIME DESC")
         
-    result = cursor.fetchall()
+    columns = [column[0] for column in cursor.description]
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
     cursor.close()
     conn.close()
-    return jsonify({'data': result})  # ✅ penting: bungkus di 'data'
+    return jsonify({'data': rows})  # ✅ penting: bungkus di 'data'
 
 
 @app.route('/api/status')
