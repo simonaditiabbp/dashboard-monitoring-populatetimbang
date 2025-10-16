@@ -1,0 +1,14 @@
+name: Notify and Auto Deploy (On-premise)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send webhook to on-premise server
+        run: |
+          curl -X POST https://wbmon.borneo.co.id/deploy
