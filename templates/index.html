@@ -20,7 +20,7 @@
 
   <header class="bg-gray-800 text-white p-4 shadow-md flex justify-between items-center">
     <a href="/" class="text-lg font-semibold tracking-wide">
-      📊 Monitoring Timbang 123
+      📊 Monitoring Timbang
     </a>
     <a href="/logout" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-sm font-semibold">
       Logout
@@ -118,27 +118,40 @@
 
     function loadLogs() {
       $('#logTable').DataTable({
-        ajax: '/api/logs',
+        ajax: {
+          url: '/api/logs',
+          type: 'GET',
+          data: function(d) {
+            d.page = Math.ceil(d.start / d.length) + 1; // Hitung halaman berdasarkan start dan length
+            d.limit = d.length; // Kirim jumlah data per halaman
+            d.searchValue = d.search.value; // Kirim nilai pencarian
+          },
+          dataSrc: function(json) {
+            return json.data; // Ambil data dari respons API
+          }
+        },
+        serverSide: true,
+        processing: true,
         destroy: true,
         columns: [
           { data: 'NOURUT1' },
           { data: 'PLANT_ID' },
           { data: 'AKSI',
             render: function (data) {
-                if (!data) return `<span class="text-gray-400">-</span>`;
-                let textColor = 'text-gray-700'; // default
-                switch (data.toUpperCase()) {
-                  case 'DELETE':
-                    textColor = 'text-red-600';
-                    break;
-                  case 'UPDATE':
-                    textColor = 'text-yellow-600';
-                    break;
-                  case 'INSERT':
-                    textColor = 'text-green-600';
-                    break;
-                }
-                return `<span class="px-2 py-1 text-xs font-semibold rounded-md bg-gray-100 ${textColor}">${data}</span>`;
+              if (!data) return `<span class="text-gray-400">-</span>`;
+              let textColor = 'text-gray-700'; // default
+              switch (data.toUpperCase()) {
+                case 'DELETE':
+                  textColor = 'text-red-600';
+                  break;
+                case 'UPDATE':
+                  textColor = 'text-yellow-600';
+                  break;
+                case 'INSERT':
+                  textColor = 'text-green-600';
+                  break;
+              }
+              return `<span class="px-2 py-1 text-xs font-semibold rounded-md bg-gray-100 ${textColor}">${data}</span>`;
             }
           },
           { data: 'PC_NAME',
@@ -147,8 +160,8 @@
               const pcName = data.toUpperCase()
               return `<span class="uppercase">${pcName}</span>`
             }
-           },
-          { data: 'LOG_TIME' },          
+          },
+          { data: 'LOG_TIME' },
           {
             data: 'STATUS',
             render: function (data) {
@@ -161,13 +174,12 @@
               return `<span class="px-2 py-1 text-xs font-semibold rounded-md ${colorClass}">${status}</span>`;
             }
           },
-          { data: 'MESSAGE' },
+          { data: 'MESSAGE' }
         ],
-        // ⬇ Tambahkan bagian ini untuk mengatur align center
         columnDefs: [
-          { targets: [0, 1, 2, 3, 4, 5, 6], className: 'text-center' } // 2 = AKSI, 3 = PC_NAME, 5 = STATUS
+          { targets: [0, 1, 2, 3, 4, 5, 6], className: 'text-center' }
         ],
-        pageLength: 25,
+        pageLength: 10,
         order: [[3, 'desc']],
         language: { search: "🔍 Cari:" }
       });
@@ -224,7 +236,7 @@
         columnDefs: [
           { targets: [0, 1, 2, 3, 4, 5, 6], className: 'text-center' } // 2 = AKSI, 3 = PC_NAME, 5 = STATUS
         ],
-        pageLength: 25,
+        pageLength: 10,
         order: [[3, 'desc']],
         language: { search: "🔍 Cari:" }
       });

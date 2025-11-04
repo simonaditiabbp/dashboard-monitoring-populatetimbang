@@ -68,22 +68,65 @@ def logout():
 def get_logs():    
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    pc_name = request.args.get('pc_name')
-    query_base = f"SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS FROM {tb_timbang_log}"
 
+    # Ambil parameter pagination
+    start = int(request.args.get('start', 0))  # Default mulai dari data pertama
+    limit = int(request.args.get('limit', 10))  # Default 10 data per halaman
+    search_value = request.args.get('searchValue', '').strip()  # Nilai pencarian
+
+    pc_name = request.args.get('pc_name')
+
+    # Query dengan ROW_NUMBER untuk pagination
+    query = f"""
+        WITH OrderedLogs AS (
+            SELECT 
+                NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS,
+                ROW_NUMBER() OVER (ORDER BY LOG_TIME DESC) AS RowNum
+            FROM {tb_timbang_log}
+            WHERE 1=1
+            {f'AND PC_NAME = ?' if pc_name else ''}
+            {f'AND (NOURUT1 LIKE ? OR PLANT_ID LIKE ? OR AKSI LIKE ? OR PC_NAME LIKE ? OR MESSAGE LIKE ?)' if search_value else ''}
+        )
+        SELECT NOURUT1, PLANT_ID, AKSI, PC_NAME, LOG_TIME, MESSAGE, STATUS
+        FROM OrderedLogs
+        WHERE RowNum BETWEEN ? AND ?
+    """
+
+    # Hitung total data
+    count_query = f"SELECT COUNT(*) FROM {tb_timbang_log} WHERE 1=1"
     if pc_name:
-        query = query_base + " WHERE PC_NAME = ? ORDER BY LOG_TIME DESC"
-        cursor.execute(query, (pc_name,))
-    else:
-        query = query_base + " ORDER BY LOG_TIME DESC"
-        cursor.execute(query)
-        
+        count_query += " AND PC_NAME = ?"
+    if search_value:
+        count_query += " AND (NOURUT1 LIKE ? OR PLANT_ID LIKE ? OR AKSI LIKE ? OR PC_NAME LIKE ? OR MESSAGE LIKE ?)"
+
+    params = []
+    if pc_name:
+        params.append(pc_name)
+    if search_value:
+        search_pattern = f"%{search_value}%"
+        params.extend([search_pattern] * 5)
+
+    cursor.execute(count_query, tuple(params))
+    total_data = cursor.fetchone()[0]
+
+    # Hitung batas pagination
+    start_row = start + 1
+    end_row = start + limit
+
+    # Eksekusi query utama
+    params.extend([start_row, end_row])
+    cursor.execute(query, tuple(params))
+
     columns = [column[0] for column in cursor.description]
     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
     cursor.close()
     conn.close()
-    return jsonify({'data': rows}) 
+
+    return jsonify({
+        'data': rows,
+        'recordsTotal': total_data,
+        'recordsFiltered': total_data
+    }) 
 
 
 @app.route('/api/status')
@@ -116,16 +159,16 @@ def heartbeat():
     name = name.lower() if name else None
     if name:
         heartbeats[name] = datetime.now()
-        print(f"💓 Heartbeat diterima dari {name} pada {datetime.now().strftime('%H:%M:%S')}")
+        # print(f"💓 Heartbeat diterima dari {name} pada {datetime.now().strftime('%H:%M:%S')}")
         return jsonify({"status": "ok"})
     return jsonify({"status": "error", "message": "pc_name missing"}), 400
 
-@app.errorhandler(Exception)
-def handle_error(e):
-    import traceback
-    print("ERROR:", e)
-    traceback.print_exc()
-    return jsonify({'error': str(e)}), 500
+# @app.errorhandler(Exception)
+# def handle_error(e):
+#     import traceback
+#     print("ERROR:", e)
+#     traceback.print_exc()
+#     return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
