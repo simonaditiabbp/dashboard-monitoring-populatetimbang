@@ -71,7 +71,7 @@ def get_logs():
 
     # Ambil parameter pagination
     start = int(request.args.get('start', 0))  # Default mulai dari data pertama
-    limit = int(request.args.get('limit', 10))  # Default 10 data per halaman
+    limit = int(request.args.get('length', 10))  # Ganti dari 'limit' ke 'length' agar sesuai DataTables
     search_value = request.args.get('searchValue', '').strip()  # Nilai pencarian
 
     pc_name = request.args.get('pc_name')

@@ -121,10 +121,14 @@
         ajax: {
           url: '/api/logs',
           type: 'GET',
+          cache: true, // Nonaktifkan cache-busting
           data: function(d) {
-            d.page = Math.ceil(d.start / d.length) + 1; // Hitung halaman berdasarkan start dan length
-            d.limit = d.length; // Kirim jumlah data per halaman
-            d.searchValue = d.search.value; // Kirim nilai pencarian
+            // Kirim hanya parameter yang diperlukan
+            return {
+              start: d.start,
+              length: d.length,
+              searchValue: d.search.value
+            };
           },
           dataSrc: function(json) {
             return json.data; // Ambil data dari respons API
@@ -179,7 +183,6 @@
         columnDefs: [
           { targets: [0, 1, 2, 3, 4, 5, 6], className: 'text-center' }
         ],
-        pageLength: 10,
         order: [[3, 'desc']],
         language: { search: "🔍 Cari:" }
       });
@@ -188,7 +191,23 @@
     function refreshLogs(pc_name) {
       console.log(`🔄 Refresh log untuk: ${pc_name}`);
       $('#logTable').DataTable({
-        ajax: `/api/logs?pc_name=${pc_name}`,
+        ajax: {
+          url: `/api/logs?pc_name=${pc_name}`,
+          type: 'GET',
+          cache: true,
+          data: function(d) {
+            return {
+              start: d.start,
+              length: d.length,
+              searchValue: d.search.value
+            };
+          },
+          dataSrc: function(json) {
+            return json.data;
+          }
+        },
+        serverSide: true,
+        processing: true,
         destroy: true,
         columns: [
           { data: 'NOURUT1' },
@@ -234,9 +253,8 @@
           { data: 'MESSAGE' }
         ],
         columnDefs: [
-          { targets: [0, 1, 2, 3, 4, 5, 6], className: 'text-center' } // 2 = AKSI, 3 = PC_NAME, 5 = STATUS
+          { targets: [0, 1, 2, 3, 4, 5, 6], className: 'text-center' }
         ],
-        pageLength: 10,
         order: [[3, 'desc']],
         language: { search: "🔍 Cari:" }
       });
